@@ -4,23 +4,23 @@ import android.Manifest
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.webkit.MimeTypeMap
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.documentfile.provider.DocumentFile
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.myapplication1.databinding.ActivityMainBinding
-import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
@@ -71,105 +71,94 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-//    private fun saveToDownloadText(text:String) {
-//        val destPath = getExternalFilesDir(null)!!.absolutePath
-//        val file = File(destPath, "notes.txt")
-//        if (!file.exists()){
-//            file.createNewFile()
-//        } else {
-//            file.delete()
-//            file.createNewFile()
-//        }
-//        file.writeText(text)
-//
-//        val destPathDownload = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-//        val src = FileInputStream(file)
-//        val dst = applicationContext.contentResolver.openOutputStream(destPathDownload.toUri())
-//        src.copyTo(dst!!)
-//        src.close()
-//        dst.close()
-//        file.delete()
-//
-//    }
 
     private fun saveToDownloadText(text: String) {
         try {
-            val downloadsDir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Для Android 10+ используем MediaStore
+            val fileName = "notes3"
+            val resolver = applicationContext.contentResolver
 
-                val fileName = "notes.txt"
-                val mimeType = "application/octet-stream"
-                // 1. Удаляем старый файл, если он есть
-                val deleted = contentResolver.query(
-                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    arrayOf(MediaStore.MediaColumns._ID),
-                    "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
-                    arrayOf(fileName),
-                    null
-                )?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        ContentUris.withAppendedId(
-                            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                            cursor.getLong(0)
+            // 1. Удаляем старый файл, если он есть
+            val query = resolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Downloads._ID),
+                "${MediaStore.Downloads.DISPLAY_NAME} = ?",
+                arrayOf(fileName),
+                null
+            )
+
+            val uriDel = query?.use { cursor ->
+//                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+//                val listUri = mutableListOf<Uri>()
+//                while (cursor.moveToNext()) {
+//                    val id = cursor.getLong(idColumn)
+//                    val contentUri = ContentUris.withAppendedId(
+//                        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+//                        id
+//                    )
+//                    listUri += contentUri
+//                }
+//
+//                if (!listUri.isEmpty()) {
+//                    listUri[0]
+//                } else null
+
+                if (cursor.moveToFirst()) {
+                    ContentUris.withAppendedId(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                        cursor.getLong(
+                            cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                         )
-                    } else null
-                }?.let { uri ->
-                    contentResolver.delete(
-                        uri,
-                        null,
-                        null)
-                    DocumentFile.fromSingleUri(applicationContext, uri)?.delete()
-                }
+                    )
+                } else null
+            }
 
+//            val numRowDel = uriDel?.let { uri ->
+//                resolver.delete(
+//                    uri,
+//                    "${MediaStore.Downloads.DISPLAY_NAME} = ?",
+//                    arrayOf(fileName)
+//                )
+//            }
+//
+//            if (numRowDel != null) {
+//                Toast.makeText(this, "Row ${numRowDel} is deleted", Toast.LENGTH_LONG).show()
+//            } else {
+//                Toast.makeText(this, "Error deleted", Toast.LENGTH_LONG).show()
+//            }
 
+            var uriSave: Uri? = uriDel
+            if (uriDel == null) {
                 // 2. Создаём новый файл
+
+                val ext = fileName.substringAfterLast('.', "")
+                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+
                 val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.MIME_TYPE, mimeType)
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                 }
 
-                contentResolver.insert(
+                uriSave = resolver.insert(
                     MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                     contentValues
-                )?.let { uri ->
-                    contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        outputStream.write(text.toByteArray())
-                        Toast.makeText(this, "File saved to: ${uri.path}", Toast.LENGTH_LONG).show()
-                    }
+                )
+            }
+
+            uriSave?.let { uri ->
+                val outputStreamCr = resolver.openOutputStream(uri)
+
+                outputStreamCr?.use { outputStream ->
+                    outputStream.write(text.toByteArray())
                 }
-
-
-
-                return
-            } else {
-                // Для старых версий Android
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                Toast.makeText(this, "File saved to: ${uri.path}", Toast.LENGTH_LONG).show()
             }
 
-            if (downloadsDir != null && downloadsDir is File) {
-                val file = File(downloadsDir, "notes.txt")
-                file.writeText(text)
-                Toast.makeText(this, "File saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
-            }
         } catch (e: Exception) {
             e.printStackTrace()
             // Обработка ошибки
             Toast.makeText(this, "Error saving file: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
-
-//    private fun saveToDownloadText(text: String) {
-//        try {
-//            val file = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "notes.txt")
-//            file.writeText(text)
-//
-//            // Показать пользователю, где сохранен файл
-//            Toast.makeText(this, "File saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
-//        } catch (e: Exception) {
-//            e.printStackTrace()
-//            Toast.makeText(this, "Error saving file: ${e.message}", Toast.LENGTH_LONG).show()
-//        }
-//    }
 
 }

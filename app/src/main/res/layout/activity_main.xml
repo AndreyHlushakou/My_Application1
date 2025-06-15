@@ -28,6 +28,22 @@
             android:layout_height="wrap_content"
             android:layout_margin="24dp"
             android:text="Click Me"/>
+
+        <TextView
+            android:id="@+id/textView2"
+            android:text="HelloWorld2!"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="24dp"
+            android:gravity="center"
+            android:textSize="25sp"/>
+
+        <Button
+            android:id="@+id/button2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="24dp"
+            android:text="Click Me2"/>
     </LinearLayout>
 
     <com.google.android.material.bottomnavigation.BottomNavigationView

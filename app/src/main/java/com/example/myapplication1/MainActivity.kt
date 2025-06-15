@@ -49,6 +49,14 @@ class MainActivity : AppCompatActivity() {
             saveToDownloadText(str)
         }
 
+        val textView2 = findViewById<TextView>(R.id.textView2)
+        val button2 = findViewById<Button>(R.id.button2)
+        button2.setOnClickListener {
+            val str = "You clicked button2 =" + Math.random()*100
+            textView2.text = str
+            checkMap()
+        }
+
         val navController = findNavController(R.id.nav_host_fragment_activity_main)
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
@@ -74,7 +82,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveToDownloadText(text: String) {
         try {
-            val fileName = "notes3"
+            val fileName = "notes.txt"
             val resolver = applicationContext.contentResolver
 
             // 1. Удаляем старый файл, если он есть
@@ -87,21 +95,6 @@ class MainActivity : AppCompatActivity() {
             )
 
             val uriDel = query?.use { cursor ->
-//                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID)
-//                val listUri = mutableListOf<Uri>()
-//                while (cursor.moveToNext()) {
-//                    val id = cursor.getLong(idColumn)
-//                    val contentUri = ContentUris.withAppendedId(
-//                        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-//                        id
-//                    )
-//                    listUri += contentUri
-//                }
-//
-//                if (!listUri.isEmpty()) {
-//                    listUri[0]
-//                } else null
-
                 if (cursor.moveToFirst()) {
                     ContentUris.withAppendedId(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI,
@@ -111,20 +104,6 @@ class MainActivity : AppCompatActivity() {
                     )
                 } else null
             }
-
-//            val numRowDel = uriDel?.let { uri ->
-//                resolver.delete(
-//                    uri,
-//                    "${MediaStore.Downloads.DISPLAY_NAME} = ?",
-//                    arrayOf(fileName)
-//                )
-//            }
-//
-//            if (numRowDel != null) {
-//                Toast.makeText(this, "Row ${numRowDel} is deleted", Toast.LENGTH_LONG).show()
-//            } else {
-//                Toast.makeText(this, "Error deleted", Toast.LENGTH_LONG).show()
-//            }
 
             var uriSave: Uri? = uriDel
             if (uriDel == null) {
@@ -159,6 +138,56 @@ class MainActivity : AppCompatActivity() {
             // Обработка ошибки
             Toast.makeText(this, "Error saving file: ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+
+
+    private fun checkMap() {
+
+        try {
+            val resolver = applicationContext.contentResolver
+            val msUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+            val msId = MediaStore.Downloads._ID
+            val msDn = MediaStore.Downloads.DISPLAY_NAME
+
+            val query = resolver.query(
+                msUri,
+                arrayOf(
+                    msId,
+                    msDn
+                ),
+                null,
+                null,
+                null
+            )
+
+            val listUri = mutableListOf<Uri>()
+            val listNames = mutableListOf<String>()
+
+            query?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(msId)
+                val displayName = cursor.getColumnIndexOrThrow(msDn)
+
+                while (cursor.moveToNext()) {
+                    val contentUri = ContentUris.withAppendedId(
+                        msUri,
+                        cursor.getLong(idColumn)
+                    )
+                    val name = cursor.getString(displayName)
+
+                    listUri += contentUri
+                    listNames += name
+                }
+
+            }
+
+            if (listUri.isEmpty()) {}
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Обработка ошибки
+            Toast.makeText(this, "Error saving file: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+
     }
 
 }
